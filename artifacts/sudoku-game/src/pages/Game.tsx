@@ -182,7 +182,6 @@ export default function Game() {
 
   const handleDifficultyChange = (d: Difficulty) => {
     setDifficulty(d);
-    setShowSettings(false);
     initGame(d);
   };
 
