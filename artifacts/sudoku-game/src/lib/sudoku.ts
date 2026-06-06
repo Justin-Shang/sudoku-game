@@ -1,4 +1,4 @@
-export function generatePuzzle() {
+export function generatePuzzle(clueCount = 38) {
   const board = Array(9).fill(null).map(() => Array(9).fill(0));
   
   // Fill diagonal boxes
@@ -12,8 +12,7 @@ export function generatePuzzle() {
   const solution = board.map(row => [...row]);
   const puzzle = board.map(row => [...row]);
   
-  // Remove cells to create puzzle (leave ~35 clues for kid-friendly difficulty)
-  const cellsToRemove = 81 - 38;
+  const cellsToRemove = 81 - Math.max(17, Math.min(clueCount, 80));
   let count = 0;
   
   while (count < cellsToRemove) {

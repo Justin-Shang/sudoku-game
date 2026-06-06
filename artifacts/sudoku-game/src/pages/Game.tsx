@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { generatePuzzle, isValidPlacement } from "@/lib/sudoku";
-import { Heart, Timer, RotateCcw, Sparkles } from "lucide-react";
+import { Heart, Timer, RotateCcw, Sparkles, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type CellType = {
@@ -16,6 +16,23 @@ type HistoryEntry = {
   isError: boolean;
 };
 
+type Difficulty = "easy" | "medium" | "hard" | "expert";
+type Theme = "pink" | "ocean" | "sunny" | "night";
+
+const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; emoji: string; clues: number; desc: string }> = {
+  easy:   { label: "初级",   emoji: "🌸", clues: 38, desc: "适合新手，提示较多" },
+  medium: { label: "中级",   emoji: "🌊", clues: 32, desc: "需要一点推理技巧" },
+  hard:   { label: "高级",   emoji: "🔥", clues: 26, desc: "考验逻辑，挑战自我" },
+  expert: { label: "专家",   emoji: "⚡", clues: 22, desc: "对标数独竞技大师" },
+};
+
+const THEME_CONFIG: Record<Theme, { label: string; colors: string[]; dataTheme: string }> = {
+  pink:  { label: "粉色少女", colors: ["#c084fc", "#fb7185", "#fde68a"], dataTheme: "" },
+  ocean: { label: "深海蓝",   colors: ["#3b82f6", "#14b8a6", "#7dd3fc"], dataTheme: "ocean" },
+  sunny: { label: "阳光橙",   colors: ["#f97316", "#eab308", "#fb923c"], dataTheme: "sunny" },
+  night: { label: "星空夜",   colors: ["#a855f7", "#38bdf8", "#facc15"], dataTheme: "night" },
+};
+
 export default function Game() {
   const [board, setBoard] = useState<CellType[][]>([]);
   const [solution, setSolution] = useState<number[][]>([]);
@@ -25,9 +42,23 @@ export default function Game() {
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isWon, setIsWon] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [theme, setTheme] = useState<Theme>("pink");
+  const [showSettings, setShowSettings] = useState(false);
 
-  const initGame = useCallback(() => {
-    const { puzzle, solution: sol } = generatePuzzle();
+  // Apply theme to document root
+  useEffect(() => {
+    const cfg = THEME_CONFIG[theme];
+    if (cfg.dataTheme) {
+      document.documentElement.setAttribute("data-theme", cfg.dataTheme);
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+  }, [theme]);
+
+  const initGame = useCallback((diff?: Difficulty) => {
+    const d = diff ?? difficulty;
+    const { puzzle, solution: sol } = generatePuzzle(DIFFICULTY_CONFIG[d].clues);
     setSolution(sol);
     setBoard(
       puzzle.map((row) =>
@@ -44,18 +75,17 @@ export default function Game() {
     setIsPlaying(true);
     setIsWon(false);
     setSelectedCell(null);
-  }, []);
+  }, [difficulty]);
 
   useEffect(() => {
     initGame();
-  }, [initGame]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isPlaying && !isWon) {
-      timer = setInterval(() => {
-        setTime((t) => t + 1);
-      }, 1000);
+      timer = setInterval(() => setTime((t) => t + 1), 1000);
     }
     return () => clearInterval(timer);
   }, [isPlaying, isWon]);
@@ -78,31 +108,25 @@ export default function Game() {
       const prevValue = board[r][c].value;
       if (prevValue === num) return;
 
-      const isError = num !== null && !isValidPlacement(board.map(row => row.map(cell => cell.value)), r, c, num);
+      const isError =
+        num !== null &&
+        !isValidPlacement(board.map((row) => row.map((cell) => cell.value)), r, c, num);
 
-      const newBoard = [...board];
-      newBoard[r] = [...newBoard[r]];
-      newBoard[r][c] = {
-        ...newBoard[r][c],
-        value: num,
-        isError,
-      };
+      const newBoard = board.map((row, ri) =>
+        ri === r
+          ? row.map((cell, ci) =>
+              ci === c ? { ...cell, value: num, isError } : cell
+            )
+          : [...row]
+      );
 
       setBoard(newBoard);
-      
       setHistory((prev) => [...prev, { row: r, col: c, prevValue, isError: board[r][c].isError }]);
 
-      // Check win condition
       if (num !== null && !isError) {
-        let complete = true;
-        for (let i = 0; i < 9; i++) {
-          for (let j = 0; j < 9; j++) {
-            if (newBoard[i][j].value === null || newBoard[i][j].isError) {
-              complete = false;
-              break;
-            }
-          }
-        }
+        const complete = newBoard.every((row) =>
+          row.every((cell) => cell.value !== null && !cell.isError)
+        );
         if (complete) setIsWon(true);
       }
     },
@@ -111,16 +135,14 @@ export default function Game() {
 
   const handleUndo = () => {
     if (undosLeft <= 0 || history.length === 0 || isWon) return;
-    const lastAction = history[history.length - 1];
-    
-    const newBoard = [...board];
-    newBoard[lastAction.row] = [...newBoard[lastAction.row]];
-    newBoard[lastAction.row][lastAction.col] = {
-      ...newBoard[lastAction.row][lastAction.col],
-      value: lastAction.prevValue,
-      isError: lastAction.isError,
-    };
-    
+    const last = history[history.length - 1];
+    const newBoard = board.map((row, ri) =>
+      ri === last.row
+        ? row.map((cell, ci) =>
+            ci === last.col ? { ...cell, value: last.prevValue, isError: last.isError } : cell
+          )
+        : [...row]
+    );
     setBoard(newBoard);
     setHistory((prev) => prev.slice(0, -1));
     setUndosLeft((prev) => prev - 1);
@@ -129,22 +151,17 @@ export default function Game() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedCell || !isPlaying || isWon) return;
-      
-      if (e.key >= "1" && e.key <= "9") {
-        handleInput(parseInt(e.key));
-      } else if (e.key === "Backspace" || e.key === "Delete") {
-        handleInput(null);
-      } else if (e.key === "ArrowUp") {
-        setSelectedCell((prev) => prev ? { r: Math.max(0, prev.r - 1), c: prev.c } : null);
-      } else if (e.key === "ArrowDown") {
-        setSelectedCell((prev) => prev ? { r: Math.min(8, prev.r + 1), c: prev.c } : null);
-      } else if (e.key === "ArrowLeft") {
-        setSelectedCell((prev) => prev ? { r: prev.r, c: Math.max(0, prev.c - 1) } : null);
-      } else if (e.key === "ArrowRight") {
-        setSelectedCell((prev) => prev ? { r: prev.r, c: Math.min(8, prev.c + 1) } : null);
-      }
+      if (e.key >= "1" && e.key <= "9") handleInput(parseInt(e.key));
+      else if (e.key === "Backspace" || e.key === "Delete") handleInput(null);
+      else if (e.key === "ArrowUp")
+        setSelectedCell((p) => p ? { r: Math.max(0, p.r - 1), c: p.c } : null);
+      else if (e.key === "ArrowDown")
+        setSelectedCell((p) => p ? { r: Math.min(8, p.r + 1), c: p.c } : null);
+      else if (e.key === "ArrowLeft")
+        setSelectedCell((p) => p ? { r: p.r, c: Math.max(0, p.c - 1) } : null);
+      else if (e.key === "ArrowRight")
+        setSelectedCell((p) => p ? { r: p.r, c: Math.min(8, p.c + 1) } : null);
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleInput, selectedCell, isPlaying, isWon]);
@@ -155,7 +172,19 @@ export default function Game() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const selectedNumber = selectedCell && board[selectedCell.r] && board[selectedCell.r][selectedCell.c] ? board[selectedCell.r][selectedCell.c].value : null;
+  const selectedNumber =
+    selectedCell && board[selectedCell.r]?.[selectedCell.c]
+      ? board[selectedCell.r][selectedCell.c].value
+      : null;
+
+  const canInput =
+    !!selectedCell && !board[selectedCell.r]?.[selectedCell.c]?.isClue && !isWon;
+
+  const handleDifficultyChange = (d: Difficulty) => {
+    setDifficulty(d);
+    setShowSettings(false);
+    initGame(d);
+  };
 
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center py-4 px-4 relative overflow-hidden">
@@ -167,22 +196,34 @@ export default function Game() {
             <Timer className="w-5 h-5" />
             <span className="w-14">{formatTime(time)}</span>
           </div>
-          <h1 className="text-2xl font-black text-secondary-foreground tracking-tight animate-float" style={{ textShadow: "0 2px 0 rgba(255,255,255,0.8)" }}>
-            数独 Sudoku
+          <h1
+            className="text-2xl font-black text-secondary-foreground tracking-tight animate-float"
+            style={{ textShadow: "0 2px 0 rgba(255,255,255,0.8)" }}
+          >
+            {DIFFICULTY_CONFIG[difficulty].emoji} 数独 Sudoku
           </h1>
-          <div className="flex gap-1">
-            {[1, 2, 3].map((i) => (
-              <Heart
-                key={i}
-                className={`w-6 h-6 transition-all duration-300 ${
-                  i <= undosLeft ? "fill-accent text-accent" : "fill-gray-200 text-gray-300"
-                }`}
-              />
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              {[1, 2, 3].map((i) => (
+                <Heart
+                  key={i}
+                  className={`w-6 h-6 transition-all duration-300 ${
+                    i <= undosLeft ? "fill-accent text-accent" : "fill-gray-200 text-gray-300"
+                  }`}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="ml-1 p-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+              data-testid="button-settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Main area: board + side panel */}
+        {/* Main area */}
         <div className="flex gap-4 items-start">
 
           {/* Board */}
@@ -191,11 +232,18 @@ export default function Game() {
               {board.map((row, r) =>
                 row.map((cell, c) => {
                   const isSelected = selectedCell?.r === r && selectedCell?.c === c;
-                  const isRelated = selectedCell && (selectedCell.r === r || selectedCell.c === c || (Math.floor(selectedCell.r / 3) === Math.floor(r / 3) && Math.floor(selectedCell.c / 3) === Math.floor(c / 3)));
+                  const isRelated =
+                    selectedCell &&
+                    (selectedCell.r === r ||
+                      selectedCell.c === c ||
+                      (Math.floor(selectedCell.r / 3) === Math.floor(r / 3) &&
+                        Math.floor(selectedCell.c / 3) === Math.floor(c / 3)));
                   const isSameNumber = cell.value !== null && cell.value === selectedNumber;
 
-                  const borderRight = c === 2 || c === 5 ? "border-r-4 border-r-primary/40" : "border-r border-r-primary/10";
-                  const borderBottom = r === 2 || r === 5 ? "border-b-4 border-b-primary/40" : "border-b border-b-primary/10";
+                  const borderRight =
+                    c === 2 || c === 5 ? "border-r-4 border-r-primary/40" : "border-r border-r-primary/10";
+                  const borderBottom =
+                    r === 2 || r === 5 ? "border-b-4 border-b-primary/40" : "border-b border-b-primary/10";
 
                   let cellBg = "bg-white";
                   if (isSelected) cellBg = "bg-secondary/40";
@@ -230,12 +278,12 @@ export default function Game() {
             </div>
           </div>
 
-          {/* Side Panel: hint + number picker + buttons */}
+          {/* Side Panel */}
           <div className="flex flex-col gap-3 w-36 shrink-0">
 
             {/* Hint */}
             <div className="bg-white/80 rounded-2xl px-3 py-2 text-center shadow-sm border border-white">
-              {!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue ? (
+              {!canInput ? (
                 <p className="text-muted-foreground text-xs font-semibold leading-tight animate-pulse">
                   👆 先点空白格
                 </p>
@@ -246,14 +294,14 @@ export default function Game() {
               )}
             </div>
 
-            {/* Number Picker: 3×3 grid for 1-9 */}
+            {/* Number Picker */}
             <div className="bg-white p-2 rounded-2xl shadow-sm border border-white">
               <div className="grid grid-cols-3 gap-1.5">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                   <button
                     key={num}
                     onClick={() => handleInput(num)}
-                    disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
+                    disabled={!canInput}
                     className="aspect-square flex items-center justify-center text-xl font-bold bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-35 disabled:cursor-not-allowed shadow-sm"
                     data-testid={`num-btn-${num}`}
                   >
@@ -261,10 +309,9 @@ export default function Game() {
                   </button>
                 ))}
               </div>
-              {/* Clear button */}
               <button
                 onClick={() => handleInput(null)}
-                disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
+                disabled={!canInput}
                 className="w-full mt-1.5 py-1.5 flex items-center justify-center gap-1 bg-muted text-muted-foreground rounded-xl hover:bg-destructive hover:text-white transition-all active:scale-95 disabled:opacity-35 disabled:cursor-not-allowed text-xs font-bold shadow-sm"
                 data-testid="num-btn-clear"
               >
@@ -273,7 +320,7 @@ export default function Game() {
               </button>
             </div>
 
-            {/* Action buttons */}
+            {/* Undo */}
             <Button
               variant="secondary"
               className="w-full rounded-2xl font-bold shadow-sm gap-1.5 text-sm"
@@ -285,14 +332,22 @@ export default function Game() {
               反悔 ({undosLeft})
             </Button>
 
+            {/* New Game */}
             <Button
               variant="outline"
               className="w-full rounded-2xl font-bold shadow-sm text-sm"
-              onClick={initGame}
+              onClick={() => initGame()}
               data-testid="button-new-game"
             >
               新游戏
             </Button>
+
+            {/* Difficulty badge */}
+            <div className="text-center">
+              <span className="text-xs font-bold text-muted-foreground bg-white/70 px-2 py-1 rounded-full">
+                {DIFFICULTY_CONFIG[difficulty].emoji} {DIFFICULTY_CONFIG[difficulty].label}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -306,17 +361,112 @@ export default function Game() {
                 <Sparkles className="w-12 h-12 text-primary" />
               </div>
             </div>
-            <h2 className="text-4xl font-black text-primary mb-2">You did it!</h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Time: <span className="font-bold text-foreground">{formatTime(time)}</span>
+            <h2 className="text-4xl font-black text-primary mb-1">太棒了！</h2>
+            <p className="text-muted-foreground text-sm mb-1">
+              {DIFFICULTY_CONFIG[difficulty].emoji} {DIFFICULTY_CONFIG[difficulty].label}
             </p>
-            <Button 
-              size="lg" 
+            <p className="text-xl text-muted-foreground mb-8">
+              用时 <span className="font-bold text-foreground">{formatTime(time)}</span>
+            </p>
+            <Button
+              size="lg"
               className="w-full text-xl h-14 rounded-full font-bold shadow-lg"
-              onClick={initGame}
+              onClick={() => initGame()}
             >
-              Play Again!
+              再来一局！
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Overlay */}
+      {showSettings && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}
+        >
+          <div className="bg-card border-2 border-primary/30 rounded-[2rem] shadow-2xl w-full max-w-md mx-4 p-6 animate-pop">
+
+            {/* Settings header */}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-2xl font-black text-foreground">⚙️ 设置</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-1.5 rounded-full bg-muted hover:bg-destructive hover:text-white transition-colors"
+                data-testid="button-close-settings"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Difficulty */}
+            <div className="mb-5">
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                难度（切换后自动新局）
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map((d) => {
+                  const cfg = DIFFICULTY_CONFIG[d];
+                  const active = difficulty === d;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => handleDifficultyChange(d)}
+                      className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                        active
+                          ? "border-primary bg-primary/10 shadow-md"
+                          : "border-border bg-muted/30 hover:border-primary/50"
+                      }`}
+                      data-testid={`difficulty-${d}`}
+                    >
+                      <div className="text-lg font-black">
+                        {cfg.emoji} {cfg.label}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{cfg.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Skin */}
+            <div>
+              <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                皮肤（即时生效）
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.keys(THEME_CONFIG) as Theme[]).map((t) => {
+                  const cfg = THEME_CONFIG[t];
+                  const active = theme === t;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setTheme(t)}
+                      className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                        active
+                          ? "border-primary bg-primary/10 shadow-md"
+                          : "border-border bg-muted/30 hover:border-primary/50"
+                      }`}
+                      data-testid={`theme-${t}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex gap-0.5">
+                          {cfg.colors.map((color, i) => (
+                            <span
+                              key={i}
+                              className="w-4 h-4 rounded-full border border-white/60 shadow-sm"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                        {active && <span className="text-primary text-xs font-bold">✓</span>}
+                      </div>
+                      <div className="text-sm font-black text-foreground">{cfg.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
