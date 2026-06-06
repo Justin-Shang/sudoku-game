@@ -211,10 +211,11 @@ export default function Game() {
                   <button
                     key={`${r}-${c}`}
                     className={`
-                      aspect-square flex items-center justify-center text-2xl sm:text-3xl transition-colors
+                      aspect-square flex items-center justify-center text-2xl sm:text-3xl transition-all duration-150
                       ${borderRight} ${borderBottom} ${cellBg} ${textColor}
                       ${cell.isError ? "animate-shake" : ""}
-                      hover:bg-secondary/20
+                      ${!cell.isClue && !isSelected ? "hover:bg-secondary/40 hover:scale-95 cursor-pointer" : ""}
+                      ${isSelected ? "ring-2 ring-primary ring-inset" : ""}
                     `}
                     onClick={() => handleCellClick(r, c)}
                     data-testid={`cell-${r}-${c}`}
@@ -251,24 +252,37 @@ export default function Game() {
         </div>
 
         {/* Number Picker */}
-        <div className="grid grid-cols-5 gap-2 sm:gap-3 bg-white p-4 rounded-3xl shadow-sm border border-white">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+        <div className="bg-white p-4 rounded-3xl shadow-sm border border-white">
+          {!selectedCell || (selectedCell && board[selectedCell.r]?.[selectedCell.c]?.isClue) ? (
+            <p className="text-center text-muted-foreground text-base font-semibold py-2 animate-pulse">
+              👆 先点击棋盘上的空白格，再选数字
+            </p>
+          ) : (
+            <p className="text-center text-primary text-base font-semibold py-1">
+              ✨ 选好啦！点下面的数字填入
+            </p>
+          )}
+          <div className="grid grid-cols-5 gap-2 sm:gap-3 mt-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+              <button
+                key={num}
+                onClick={() => handleInput(num)}
+                disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
+                className="aspect-square flex items-center justify-center text-2xl font-bold bg-primary/10 text-primary rounded-2xl hover:bg-primary hover:text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10 disabled:hover:text-primary shadow-sm"
+                data-testid={`num-btn-${num}`}
+              >
+                {num}
+              </button>
+            ))}
             <button
-              key={num}
-              onClick={() => handleInput(num)}
-              disabled={!selectedCell || board[selectedCell.r][selectedCell.c].isClue || isWon}
-              className="aspect-square flex items-center justify-center text-2xl font-bold bg-primary/10 text-primary rounded-2xl hover:bg-primary hover:text-white transition-all active:scale-95 disabled:opacity-50 disabled:hover:bg-primary/10 disabled:hover:text-primary shadow-sm"
+              onClick={() => handleInput(null)}
+              disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
+              className="aspect-square flex items-center justify-center bg-muted text-muted-foreground rounded-2xl hover:bg-destructive hover:text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              data-testid="num-btn-clear"
             >
-              {num}
+              <RotateCcw className="w-6 h-6" />
             </button>
-          ))}
-          <button
-            onClick={() => handleInput(null)}
-            disabled={!selectedCell || board[selectedCell.r][selectedCell.c].isClue || isWon}
-            className="aspect-square flex items-center justify-center bg-muted text-muted-foreground rounded-2xl hover:bg-destructive hover:text-white transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-          >
-            <RotateCcw className="w-6 h-6" />
-          </button>
+          </div>
         </div>
       </div>
 
