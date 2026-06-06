@@ -158,130 +158,141 @@ export default function Game() {
   const selectedNumber = selectedCell && board[selectedCell.r] && board[selectedCell.r][selectedCell.c] ? board[selectedCell.r][selectedCell.c].value : null;
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center py-8 px-4 relative overflow-hidden">
-      <div className="w-full max-w-md mx-auto space-y-6 z-10 relative">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center py-4 px-4 relative overflow-hidden">
+      <div className="w-full max-w-4xl z-10 relative flex flex-col gap-3">
+
         {/* Header */}
-        <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm p-4 rounded-3xl shadow-sm border border-white">
-          <div className="flex items-center gap-2 text-primary font-bold text-xl">
-            <Timer className="w-6 h-6" />
-            <span className="w-16">{formatTime(time)}</span>
+        <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm px-5 py-3 rounded-3xl shadow-sm border border-white">
+          <div className="flex items-center gap-2 text-primary font-bold text-lg">
+            <Timer className="w-5 h-5" />
+            <span className="w-14">{formatTime(time)}</span>
           </div>
-          
-          <h1 className="text-3xl font-black text-secondary-foreground tracking-tight mx-4 animate-float" style={{ textShadow: "0 2px 0 rgba(255,255,255,0.8)" }}>
-            Sudoku
+          <h1 className="text-2xl font-black text-secondary-foreground tracking-tight animate-float" style={{ textShadow: "0 2px 0 rgba(255,255,255,0.8)" }}>
+            数独 Sudoku
           </h1>
-          
           <div className="flex gap-1">
             {[1, 2, 3].map((i) => (
               <Heart
                 key={i}
                 className={`w-6 h-6 transition-all duration-300 ${
-                  i <= undosLeft ? "fill-accent text-accent animate-pulse" : "fill-gray-200 text-gray-300"
+                  i <= undosLeft ? "fill-accent text-accent" : "fill-gray-200 text-gray-300"
                 }`}
               />
             ))}
           </div>
         </div>
 
-        {/* Board */}
-        <div className="bg-white p-2 rounded-[2rem] shadow-xl border-4 border-primary/20">
-          <div className="grid grid-cols-9 gap-0.5 bg-primary/20 border-4 border-primary rounded-xl overflow-hidden">
-            {board.map((row, r) =>
-              row.map((cell, c) => {
-                const isSelected = selectedCell?.r === r && selectedCell?.c === c;
-                const isRelated = selectedCell && (selectedCell.r === r || selectedCell.c === c || (Math.floor(selectedCell.r / 3) === Math.floor(r / 3) && Math.floor(selectedCell.c / 3) === Math.floor(c / 3)));
-                const isSameNumber = cell.value !== null && cell.value === selectedNumber;
-                
-                const borderRight = c === 2 || c === 5 ? "border-r-4 border-r-primary/40" : "border-r border-r-primary/10";
-                const borderBottom = r === 2 || r === 5 ? "border-b-4 border-b-primary/40" : "border-b border-b-primary/10";
-                
-                let cellBg = "bg-white";
-                if (isSelected) cellBg = "bg-secondary/40";
-                else if (cell.isError) cellBg = "bg-destructive/20";
-                else if (isSameNumber && !isSelected) cellBg = "bg-primary/20";
-                else if (isRelated) cellBg = "bg-muted/50";
-                else if (cell.isClue) cellBg = "bg-amber-50/50";
+        {/* Main area: board + side panel */}
+        <div className="flex gap-4 items-start">
 
-                let textColor = "text-foreground";
-                if (cell.isError) textColor = "text-destructive font-black";
-                else if (cell.isClue) textColor = "text-foreground font-black";
-                else if (cell.value) textColor = "text-primary font-bold";
+          {/* Board */}
+          <div className="flex-1 bg-white p-2 rounded-[1.5rem] shadow-xl border-4 border-primary/20">
+            <div className="grid grid-cols-9 gap-0.5 bg-primary/20 border-4 border-primary rounded-xl overflow-hidden">
+              {board.map((row, r) =>
+                row.map((cell, c) => {
+                  const isSelected = selectedCell?.r === r && selectedCell?.c === c;
+                  const isRelated = selectedCell && (selectedCell.r === r || selectedCell.c === c || (Math.floor(selectedCell.r / 3) === Math.floor(r / 3) && Math.floor(selectedCell.c / 3) === Math.floor(c / 3)));
+                  const isSameNumber = cell.value !== null && cell.value === selectedNumber;
 
-                return (
-                  <button
-                    key={`${r}-${c}`}
-                    className={`
-                      aspect-square flex items-center justify-center text-2xl sm:text-3xl transition-all duration-150
-                      ${borderRight} ${borderBottom} ${cellBg} ${textColor}
-                      ${cell.isError ? "animate-shake" : ""}
-                      ${!cell.isClue && !isSelected ? "hover:bg-secondary/40 hover:scale-95 cursor-pointer" : ""}
-                      ${isSelected ? "ring-2 ring-primary ring-inset" : ""}
-                    `}
-                    onClick={() => handleCellClick(r, c)}
-                    data-testid={`cell-${r}-${c}`}
-                  >
-                    {cell.value || ""}
-                  </button>
-                );
-              })
-            )}
+                  const borderRight = c === 2 || c === 5 ? "border-r-4 border-r-primary/40" : "border-r border-r-primary/10";
+                  const borderBottom = r === 2 || r === 5 ? "border-b-4 border-b-primary/40" : "border-b border-b-primary/10";
+
+                  let cellBg = "bg-white";
+                  if (isSelected) cellBg = "bg-secondary/40";
+                  else if (cell.isError) cellBg = "bg-destructive/20";
+                  else if (isSameNumber && !isSelected) cellBg = "bg-primary/20";
+                  else if (isRelated) cellBg = "bg-muted/50";
+                  else if (cell.isClue) cellBg = "bg-amber-50/50";
+
+                  let textColor = "text-foreground";
+                  if (cell.isError) textColor = "text-destructive font-black";
+                  else if (cell.isClue) textColor = "text-foreground font-black";
+                  else if (cell.value) textColor = "text-primary font-bold";
+
+                  return (
+                    <button
+                      key={`${r}-${c}`}
+                      className={`
+                        aspect-square flex items-center justify-center text-xl sm:text-2xl transition-all duration-150
+                        ${borderRight} ${borderBottom} ${cellBg} ${textColor}
+                        ${cell.isError ? "animate-shake" : ""}
+                        ${!cell.isClue && !isSelected ? "hover:bg-secondary/40 hover:scale-95 cursor-pointer" : ""}
+                        ${isSelected ? "ring-2 ring-primary ring-inset" : ""}
+                      `}
+                      onClick={() => handleCellClick(r, c)}
+                      data-testid={`cell-${r}-${c}`}
+                    >
+                      {cell.value || ""}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Controls */}
-        <div className="flex justify-between items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="lg" 
-            className="rounded-full font-bold shadow-sm"
-            onClick={initGame}
-          >
-            New Game
-          </Button>
-          
-          <Button 
-            variant="secondary" 
-            size="lg"
-            className="rounded-full font-bold shadow-sm gap-2"
-            onClick={handleUndo}
-            disabled={undosLeft <= 0 || history.length === 0 || isWon}
-          >
-            <RotateCcw className="w-5 h-5" />
-            Undo
-          </Button>
-        </div>
+          {/* Side Panel: hint + number picker + buttons */}
+          <div className="flex flex-col gap-3 w-36 shrink-0">
 
-        {/* Number Picker */}
-        <div className="bg-white p-4 rounded-3xl shadow-sm border border-white">
-          {!selectedCell || (selectedCell && board[selectedCell.r]?.[selectedCell.c]?.isClue) ? (
-            <p className="text-center text-muted-foreground text-base font-semibold py-2 animate-pulse">
-              👆 先点击棋盘上的空白格，再选数字
-            </p>
-          ) : (
-            <p className="text-center text-primary text-base font-semibold py-1">
-              ✨ 选好啦！点下面的数字填入
-            </p>
-          )}
-          <div className="grid grid-cols-5 gap-2 sm:gap-3 mt-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+            {/* Hint */}
+            <div className="bg-white/80 rounded-2xl px-3 py-2 text-center shadow-sm border border-white">
+              {!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue ? (
+                <p className="text-muted-foreground text-xs font-semibold leading-tight animate-pulse">
+                  👆 先点空白格
+                </p>
+              ) : (
+                <p className="text-primary text-xs font-semibold leading-tight">
+                  ✨ 选一个数字
+                </p>
+              )}
+            </div>
+
+            {/* Number Picker: 3×3 grid for 1-9 */}
+            <div className="bg-white p-2 rounded-2xl shadow-sm border border-white">
+              <div className="grid grid-cols-3 gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => handleInput(num)}
+                    disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
+                    className="aspect-square flex items-center justify-center text-xl font-bold bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-35 disabled:cursor-not-allowed shadow-sm"
+                    data-testid={`num-btn-${num}`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+              {/* Clear button */}
               <button
-                key={num}
-                onClick={() => handleInput(num)}
+                onClick={() => handleInput(null)}
                 disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
-                className="aspect-square flex items-center justify-center text-2xl font-bold bg-primary/10 text-primary rounded-2xl hover:bg-primary hover:text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10 disabled:hover:text-primary shadow-sm"
-                data-testid={`num-btn-${num}`}
+                className="w-full mt-1.5 py-1.5 flex items-center justify-center gap-1 bg-muted text-muted-foreground rounded-xl hover:bg-destructive hover:text-white transition-all active:scale-95 disabled:opacity-35 disabled:cursor-not-allowed text-xs font-bold shadow-sm"
+                data-testid="num-btn-clear"
               >
-                {num}
+                <RotateCcw className="w-3.5 h-3.5" />
+                清除
               </button>
-            ))}
-            <button
-              onClick={() => handleInput(null)}
-              disabled={!selectedCell || board[selectedCell.r]?.[selectedCell.c]?.isClue || isWon}
-              className="aspect-square flex items-center justify-center bg-muted text-muted-foreground rounded-2xl hover:bg-destructive hover:text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-              data-testid="num-btn-clear"
+            </div>
+
+            {/* Action buttons */}
+            <Button
+              variant="secondary"
+              className="w-full rounded-2xl font-bold shadow-sm gap-1.5 text-sm"
+              onClick={handleUndo}
+              disabled={undosLeft <= 0 || history.length === 0 || isWon}
+              data-testid="button-undo"
             >
-              <RotateCcw className="w-6 h-6" />
-            </button>
+              <RotateCcw className="w-4 h-4" />
+              反悔 ({undosLeft})
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full rounded-2xl font-bold shadow-sm text-sm"
+              onClick={initGame}
+              data-testid="button-new-game"
+            >
+              新游戏
+            </Button>
           </div>
         </div>
       </div>
